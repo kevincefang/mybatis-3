@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE mapper PUBLIC '-//mybatis.org//DTD Mapper 3.0//EN'
+        'http://mybatis.org/dtd/mybatis-3-mapper.dtd'>
+<mapper namespace="demo.mapper.UserMapper">
+
+
+    <sql id="Base_Column_List" >
+        cuserid,cusername,cmobileno,isource,cimei,crealname,cicon,istate,cwritedate,iversion,operatortype,ccpuserid,usersignature
+    </sql>
+
+
+    <select id="getUserByCuserId" resultType="demo.model.User" parameterType="java.lang.String" >
+        select
+        <include refid="Base_Column_List" />
+        from bk_user
+        where cuserid=#{cuserId}
+    </select>
+
+
+
+
+</mapper>
