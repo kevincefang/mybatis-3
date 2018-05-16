@@ -15,11 +15,6 @@
  */
 package org.apache.ibatis.builder.xml;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Properties;
-import javax.sql.DataSource;
-
 import org.apache.ibatis.builder.BaseBuilder;
 import org.apache.ibatis.builder.BuilderException;
 import org.apache.ibatis.datasource.DataSourceFactory;
@@ -38,14 +33,15 @@ import org.apache.ibatis.reflection.MetaClass;
 import org.apache.ibatis.reflection.ReflectorFactory;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
-import org.apache.ibatis.session.AutoMappingBehavior;
-import org.apache.ibatis.session.AutoMappingUnknownColumnBehavior;
-import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.LocalCacheScope;
+import org.apache.ibatis.session.*;
 import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
+
+import javax.sql.DataSource;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.Properties;
 
 /**
  * @author Clinton Begin
@@ -103,19 +99,36 @@ public class XMLConfigBuilder extends BaseBuilder {
   private void parseConfiguration(XNode root) {
     try {
       //issue #117 read properties first
+      //解析<properties>节点
       propertiesElement(root.evalNode("properties"));
+
+      //解析<settings>节点
       Properties settings = settingsAsProperties(root.evalNode("settings"));
       loadCustomVfs(settings);
+      //解析<typeAliases>节点
       typeAliasesElement(root.evalNode("typeAliases"));
+
+      //解析<plugins>节点
       pluginElement(root.evalNode("plugins"));
+
+      //解析<objectFactory>节点
       objectFactoryElement(root.evalNode("objectFactory"));
+
+      //解析<objectWrapperFactory>节点
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
+
+      //解析<reflectorFactory>节点
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
       settingsElement(settings);
       // read it after objectFactory and objectWrapperFactory issue #631
+
+      //解析<environments>节点
       environmentsElement(root.evalNode("environments"));
+
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
       typeHandlerElement(root.evalNode("typeHandlers"));
+
+      //解析<mappers>节点
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -151,11 +164,20 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+    /**
+         <typeAliases>
+            <package name="domain.blog"/>
+         </typeAliases>
+     * @param parent
+     */
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
+        //遍历<typeAliases>下的所有子节点
       for (XNode child : parent.getChildren()) {
         if ("package".equals(child.getName())) {
+            //获取<package>上的name属性(包名)
           String typeAliasPackage = child.getStringAttribute("name");
+          //为该包下的所有类起个别名,并注册进configuration的typeAliasRegistry中
           configuration.getTypeAliasRegistry().registerAliases(typeAliasPackage);
         } else {
           String alias = child.getStringAttribute("alias");
@@ -213,24 +235,44 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+
+    /**
+     *
+     * @param context
+     * @throws Exception
+     *
+     *
+     * <properties resource="org/mybatis/example/config.properties">
+        <property name="username" value="dev_user"/>
+        <property name="password" value="F2Fa3!33TYyg"/>
+       </properties>
+     */
   private void propertiesElement(XNode context) throws Exception {
     if (context != null) {
+        //获取<properties>节点的所有子节点
       Properties defaults = context.getChildrenAsProperties();
+      //获取<properties>节点上的resource属性
       String resource = context.getStringAttribute("resource");
+      //获取<properties>节点上的url属性
       String url = context.getStringAttribute("url");
+      //resource和url属性不能同时存在
       if (resource != null && url != null) {
         throw new BuilderException("The properties element cannot specify both a URL and a resource based property file reference.  Please specify one or the other.");
       }
       if (resource != null) {
+          //获取resource属性值对应的properties文件中的键值对,并添加到defaults容器中
         defaults.putAll(Resources.getResourceAsProperties(resource));
       } else if (url != null) {
+          //获取resource属性值对应的properties文件中的键值对,并添加至defaults容器中
         defaults.putAll(Resources.getUrlAsProperties(url));
       }
+      //获取configuration中原本的属性,并添加至defaults容器中
       Properties vars = configuration.getVariables();
       if (vars != null) {
         defaults.putAll(vars);
       }
       parser.setVariables(defaults);
+      //将defaults容器添加至configuration中
       configuration.setVariables(defaults);
     }
   }
