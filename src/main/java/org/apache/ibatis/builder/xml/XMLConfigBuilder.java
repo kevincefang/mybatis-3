@@ -104,6 +104,7 @@ public class XMLConfigBuilder extends BaseBuilder {
 
       //解析<settings>节点
       Properties settings = settingsAsProperties(root.evalNode("settings"));
+      //Specifies VFS implementations
       loadCustomVfs(settings);
       //解析<typeAliases>节点
       typeAliasesElement(root.evalNode("typeAliases"));
@@ -168,22 +169,36 @@ public class XMLConfigBuilder extends BaseBuilder {
          <typeAliases>
             <package name="domain.blog"/>
          </typeAliases>
+
+
+         <typeAliases>
+         <typeAlias alias="Author" type="domain.blog.Author"/>
+         <typeAlias alias="Blog" type="domain.blog.Blog"/>
+         <typeAlias alias="Comment" type="domain.blog.Comment"/>
+         <typeAlias alias="Post" type="domain.blog.Post"/>
+         <typeAlias alias="Section" type="domain.blog.Section"/>
+         <typeAlias alias="Tag" type="domain.blog.Tag"/>
+         </typeAliases>
      * @param parent
      */
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
         //遍历<typeAliases>下的所有子节点
       for (XNode child : parent.getChildren()) {
+          //当前节点为<package>时
         if ("package".equals(child.getName())) {
             //获取<package>上的name属性(包名)
           String typeAliasPackage = child.getStringAttribute("name");
           //为该包下的所有类起个别名,并注册进configuration的typeAliasRegistry中
           configuration.getTypeAliasRegistry().registerAliases(typeAliasPackage);
-        } else {
+        }
+        //当前节点为<typeAlias>时
+        else {
           String alias = child.getStringAttribute("alias");
           String type = child.getStringAttribute("type");
           try {
             Class<?> clazz = Resources.classForName(type);
+            //注册到configuration的typeAliasRegistry中
             if (alias == null) {
               typeAliasRegistry.registerAlias(clazz);
             } else {
@@ -398,29 +413,70 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+    /**
+     *
+     * @param parent
+     * @throws Exception
+     *
+     * <!-- Using classpath relative resources -->
+        <mappers>
+            <mapper resource="org/mybatis/builder/AuthorMapper.xml"/>
+            <mapper resource="org/mybatis/builder/BlogMapper.xml"/>
+            <mapper resource="org/mybatis/builder/PostMapper.xml"/>
+            </mappers>
+            <!-- Using url fully qualified paths -->
+            <mappers>
+            <mapper url="file:///var/mappers/AuthorMapper.xml"/>
+            <mapper url="file:///var/mappers/BlogMapper.xml"/>
+            <mapper url="file:///var/mappers/PostMapper.xml"/>
+            </mappers>
+            <!-- Using mapper interface classes -->
+            <mappers>
+            <mapper class="org.mybatis.builder.AuthorMapper"/>
+            <mapper class="org.mybatis.builder.BlogMapper"/>
+            <mapper class="org.mybatis.builder.PostMapper"/>
+            </mappers>
+            <!-- Register all interfaces in a package as mappers -->
+            <mappers>
+            <package name="org.mybatis.builder"/>
+        </mappers>
+     */
   private void mapperElement(XNode parent) throws Exception {
     if (parent != null) {
+        //遍历<mappers>下所有的子节点
       for (XNode child : parent.getChildren()) {
+          //如果当前节点是<package>
         if ("package".equals(child.getName())) {
           String mapperPackage = child.getStringAttribute("name");
           configuration.addMappers(mapperPackage);
         } else {
+            //依次获取resource、url、class属性
           String resource = child.getStringAttribute("resource");
           String url = child.getStringAttribute("url");
           String mapperClass = child.getStringAttribute("class");
+            // 解析resource属性（Mapper.xml文件的路径）
           if (resource != null && url == null && mapperClass == null) {
             ErrorContext.instance().resource(resource);
+            // 将Mapper.xml文件解析成输入流
             InputStream inputStream = Resources.getResourceAsStream(resource);
-            XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
+
+              // 使用XMLMapperBuilder解析Mapper.xml，并将Mapper Class注册进configuration对象的mapperRegistry容器中
+              XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
             mapperParser.parse();
-          } else if (resource == null && url != null && mapperClass == null) {
+          }
+          // 解析url属性（Mapper.xml文件的路径）
+          else if (resource == null && url != null && mapperClass == null) {
             ErrorContext.instance().resource(url);
             InputStream inputStream = Resources.getUrlAsStream(url);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, url, configuration.getSqlFragments());
             mapperParser.parse();
-          } else if (resource == null && url == null && mapperClass != null) {
+          }
+          // 解析class属性（Mapper Class的全限定名）
+          else if (resource == null && url == null && mapperClass != null) {
+              // 将Mapper Class的权限定名转化成Class对象
             Class<?> mapperInterface = Resources.classForName(mapperClass);
-            configuration.addMapper(mapperInterface);
+              // 注册进configuration对象的mapperRegistry容器中
+              configuration.addMapper(mapperInterface);
           } else {
             throw new BuilderException("A mapper element may only specify a url, resource or class, but not more than one.");
           }
